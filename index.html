@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Buyer Cost & Concession Walkthrough</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--text:#17202a;--muted:#667085;--border:#d0d5dd;--accent:#2563eb;--accentText:#fff;--ok:#e8f5e9;--warn:#fff4e5}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+.wrap{max-width:760px;margin:0 auto;padding:20px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center}
+.progress{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:8px}.bar{height:100%;background:var(--accent);width:9%}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;margin-top:18px}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:22px;margin:0}h3{font-size:18px;margin:24px 0 10px}
+.muted{color:var(--muted)}label{display:block;margin-top:18px;font-weight:600}
+input,select{width:100%;margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:13px;font-size:16px;background:#fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.buttons{display:flex;justify-content:space-between;gap:12px;margin-top:24px}
+button{border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:16px;background:#fff;cursor:pointer}
+.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric,.node{border:1px solid var(--border);border-radius:14px;padding:14px;background:#fff}
+.metric strong{display:block;font-size:22px;margin-top:4px}.rows{border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.row{display:flex;justify-content:space-between;gap:16px;padding:12px 14px;border-top:1px solid var(--border)}.row:first-child{border-top:0}
+.callout{background:#eef4ff;border-radius:14px;padding:14px;margin-top:14px}.badge{display:inline-block;background:#eef4ff;border-radius:999px;padding:4px 9px;font-size:13px}
+.error{color:#b42318;margin-top:10px}.foot{font-size:13px;color:var(--muted);margin-top:16px;line-height:1.45}
+@media(max-width:620px){.grid,.metric-grid{grid-template-columns:1fr 1fr}.wrap{padding:14px}.card{padding:18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div style="flex:1">
+      <h1>Buyer Cost & Concession Walkthrough</h1>
+      <div id="stepLabel" class="muted">Question 1 of 11</div>
+      <div class="progress"><div id="progress" class="bar"></div></div>
+    </div>
+    <button id="restartBtn">Start over</button>
+  </div>
+  <section class="card">
+    <div id="questionArea"></div>
+    <div id="error" class="error" hidden></div>
+    <div class="buttons">
+      <button id="backBtn">Back</button>
+      <button id="nextBtn" class="primary">Next</button>
+    </div>
+  </section>
+  <div class="foot">Educational estimate only. Confirm rate, points, PMI, taxes, insurance, escrows, concessions, and allowable costs with the buyer’s lender and title company.</div>
+</div>
+<script>
+const state={loanType:'Conventional',occupancy:'Primary / Second Home',price:600000,appraisal:600000,downType:'percent',down:5,rate:6.69,term:30,taxes:3600,insurance:2400,hoa:0,pmi:0.60,concessions:18000,lenderFees:6500,otherFees:1350,prepaidDays:15,taxEscrowMonths:3,insuranceEscrowMonths:3,options:[{rate:6.69,points:0},{rate:6.50,points:.50},{rate:6.25,points:1},{rate:6.00,points:1.75}]};
+let step=0;const el=id=>document.getElementById(id);
+const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(Number(n)||0);
+const pct=n=>`${Number(n).toFixed(2)}%`;
+function payment(p,a,y){const r=a/100/12,n=y*12;if(!r)return p/n;return p*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1)}
+function figures(){const downDollar=state.downType==='percent'?state.price*state.down/100:state.down;const baseLoan=Math.max(state.price-downDollar,0);const lower=Math.min(state.price,state.appraisal||state.price);const ltv=lower?baseLoan/lower:0;let financedFee=0;if(state.loanType==='FHA')financedFee=baseLoan*.0175;if(state.loanType==='VA')financedFee=baseLoan*.0215;const totalLoan=baseLoan+financedFee;const pi=payment(totalLoan,state.rate,state.term);const monthlyTax=state.taxes/12,monthlyIns=state.insurance/12;let monthlyMI=0;if(state.loanType==='FHA')monthlyMI=baseLoan*.0055/12;else if(state.loanType==='Conventional'&&ltv>.8)monthlyMI=baseLoan*(state.pmi/100)/12;const totalMonthly=pi+monthlyTax+monthlyIns+state.hoa+monthlyMI;let maxPct=state.loanType==='FHA'?.06:state.loanType==='VA'?.04:state.occupancy==='Investment'?.02:ltv>.9?.03:ltv>.75?.06:.09;const maxConcession=lower*maxPct;const eligible=Math.min(state.concessions,maxConcession);const prepaid=totalLoan*(state.rate/100)/365*state.prepaidDays;const taxEscrow=monthlyTax*state.taxEscrowMonths;const insEscrow=monthlyIns*state.insuranceEscrowMonths;const closing=state.lenderFees+state.otherFees+prepaid+taxEscrow+insEscrow+state.insurance;const toward=Math.min(eligible,closing);const remainingCosts=Math.max(closing-toward,0);const remainingBuydown=Math.max(eligible-toward,0);return{downDollar,baseLoan,totalLoan,ltv,pi,monthlyTax,monthlyIns,monthlyMI,totalMonthly,maxPct,maxConcession,eligible,closing,toward,remainingCosts,remainingBuydown,cashToClose:downDollar+remainingCosts}}
+const input=(id,val,type='number')=>`<input id="${id}" type="${type}" value="${val}">`;
+const steps=[
+{render:()=>`<h2>What type of loan is the buyer using?</h2><p class="muted">This affects mortgage insurance, financed fees, and seller-concession rules.</p><label>Loan type<select id="loanType"><option>Conventional</option><option>FHA</option><option>VA</option></select></label>`,read:()=>state.loanType=el('loanType').value,bind:()=>el('loanType').value=state.loanType},
+{render:()=>`<h2>How will the property be used?</h2><p class="muted">Occupancy can change conventional concession limits.</p><label>Occupancy<select id="occupancy"><option>Primary / Second Home</option><option>Investment</option></select></label>`,read:()=>state.occupancy=el('occupancy').value,bind:()=>el('occupancy').value=state.occupancy},
+{render:()=>`<h2>What is the expected purchase price?</h2><label>Purchase price${input('price',state.price)}</label>`,read:()=>state.price=+el('price').value},
+{render:()=>`<h2>What is the expected appraised value?</h2><p class="muted">Before the appraisal, use the purchase price.</p><label>Appraised value${input('appraisal',state.appraisal)}</label>`,read:()=>state.appraisal=+el('appraisal').value},
+{render:()=>`<h2>How much is the buyer putting down?</h2><div class="grid"><label>Enter as<select id="downType"><option value="percent">Percentage</option><option value="dollars">Dollar amount</option></select></label><label><span id="downLabel">Down payment %</span>${input('down',state.down)}</label></div><div class="callout">Estimated down payment: <strong id="downPreview">${money(figures().downDollar)}</strong></div>`,read:()=>{state.downType=el('downType').value;state.down=+el('down').value},bind:()=>{el('downType').value=state.downType;const u=()=>{state.downType=el('downType').value;state.down=+el('down').value;el('downLabel').textContent=state.downType==='percent'?'Down payment %':'Down payment $';el('downPreview').textContent=money(figures().downDollar)};el('downType').addEventListener('change',u);el('down').addEventListener('input',u)}},
+{render:()=>`<h2>What interest rate did the lender quote?</h2><p class="muted">Replace the starting number with the buyer’s actual quote.</p><label>Interest rate %${input('rate',state.rate)}</label>`,read:()=>state.rate=+el('rate').value},
+{render:()=>`<h2>What are the property-specific costs?</h2><div class="grid"><label>Annual property taxes${input('taxes',state.taxes)}</label><label>Annual homeowners insurance${input('insurance',state.insurance)}</label><label>Monthly HOA / recurring fees${input('hoa',state.hoa)}</label><label>Estimated annual PMI %${input('pmi',state.pmi)}</label></div>`,read:()=>{state.taxes=+el('taxes').value;state.insurance=+el('insurance').value;state.hoa=+el('hoa').value;state.pmi=+el('pmi').value}},
+{render:()=>`<h2>How much seller concession are you considering?</h2><label>Seller concession${input('concessions',state.concessions)}</label>`,read:()=>state.concessions=+el('concessions').value},
+{render:()=>`<h2>Estimate the buyer’s closing costs</h2><p class="muted">These defaults can stay until the lender or title company gives better figures.</p><div class="grid"><label>Lender and title fees${input('lenderFees',state.lenderFees)}</label><label>Other buyer fees${input('otherFees',state.otherFees)}</label><label>Prepaid interest days${input('prepaidDays',state.prepaidDays)}</label><label>Tax escrow months${input('taxEscrow',state.taxEscrowMonths)}</label></div>`,read:()=>{state.lenderFees=+el('lenderFees').value;state.otherFees=+el('otherFees').value;state.prepaidDays=+el('prepaidDays').value;state.taxEscrowMonths=+el('taxEscrow').value}},
+{render:()=>`<h2>What rate-buydown choices did the lender provide?</h2><p class="muted">Enter the rate and its cost as a percentage of the loan. One point equals 1% of the loan amount.</p><div class="grid">${state.options.map((o,i)=>`<label>Rate ${i+1} %${input('r'+i,o.rate)}</label><label>Cost / points %${input('p'+i,o.points)}</label>`).join('')}</div>`,read:()=>state.options=state.options.map((o,i)=>({rate:+el('r'+i).value,points:+el('p'+i).value}))},
+{render:summary,read:()=>{}}
+];
+function summary(){const f=figures();const opts=state.options.map(o=>{const cost=f.totalLoan*o.points/100,newPI=payment(f.totalLoan,o.rate,state.term),s=f.pi-newPI;return{...o,cost,newPI,s,works:cost<=f.remainingBuydown,total:newPI+f.monthlyTax+f.monthlyIns+f.monthlyMI+state.hoa}});const best=[...opts].filter(o=>o.works).sort((a,b)=>a.rate-b.rate)[0];return`<span class="badge">Completed</span><h2 style="margin-top:12px">Buyer cost and concession summary</h2><div class="metric-grid" style="margin-top:16px"><div class="metric"><span class="muted">Purchase price</span><strong>${money(state.price)}</strong></div><div class="metric"><span class="muted">Loan amount</span><strong>${money(f.totalLoan)}</strong></div><div class="metric"><span class="muted">Est. payment</span><strong>${money(f.totalMonthly)}</strong></div><div class="metric"><span class="muted">Cash to close</span><strong>${money(f.cashToClose)}</strong></div></div><h3>Monthly payment breakdown</h3><div class="rows">${[['Principal & interest',f.pi],['Property taxes',f.monthlyTax],['Homeowners insurance',f.monthlyIns],['PMI / mortgage insurance',f.monthlyMI],['HOA / recurring fees',state.hoa],['Total monthly housing',f.totalMonthly]].map(x=>`<div class="row"><span>${x[0]}</span><strong>${money(x[1])}</strong></div>`).join('')}</div><h3>Seller concession</h3><div class="grid"><div class="node"><span class="muted">Requested</span><br><strong>${money(state.concessions)}</strong></div><div class="node"><span class="muted">Maximum estimated</span><br><strong>${money(f.maxConcession)} (${pct(f.maxPct*100)})</strong></div><div class="node"><span class="muted">Used for closing costs</span><br><strong>${money(f.toward)}</strong></div><div class="node"><span class="muted">Remaining for buydown</span><br><strong>${money(f.remainingBuydown)}</strong></div></div><h3>Rate-buydown choices</h3>${opts.map(o=>`<div class="node" style="margin-top:10px"><strong>${pct(o.rate)} rate</strong><div class="muted">Cost ${money(o.cost)} · Saves about ${money(o.s)}/month</div><div>Estimated total housing payment: <strong>${money(o.total)}/month</strong></div><div class="badge" style="margin-top:8px">${o.works?'Works':'Shortfall'}</div></div>`).join('')}<div class="callout">${best?`Lowest entered rate covered: <strong>${pct(best.rate)}</strong>, with an estimated payment of <strong>${money(best.total)}/month</strong>.`:'The remaining concession does not fully cover an entered rate-buydown option.'}</div><button id="editBtn" style="width:100%;margin-top:16px">Go back and edit answers</button>`}
+function render(){const s=steps[step];el('questionArea').innerHTML=s.render();if(s.bind)s.bind();el('stepLabel').textContent=step===steps.length-1?'Summary':`Question ${step+1} of ${steps.length-1}`;el('progress').style.width=`${Math.min(100,(step+1)/steps.length*100)}%`;el('backBtn').style.visibility=step===0?'hidden':'visible';el('nextBtn').style.display=step===steps.length-1?'none':'block';el('nextBtn').textContent=step===steps.length-2?'See summary':'Next';const e=el('editBtn');if(e)e.addEventListener('click',()=>{step=0;render()})}
+el('nextBtn').addEventListener('click',()=>{steps[step].read();step=Math.min(step+1,steps.length-1);render()});
+el('backBtn').addEventListener('click',()=>{if(step>0){steps[step].read();step--;render()}});
+el('restartBtn').addEventListener('click',()=>{step=0;render()});render();
+</script>
+</body>
+</html>
