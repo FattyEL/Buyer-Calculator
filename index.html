@@ -974,6 +974,23 @@ function render(){
 
   syncLive();
 }
+// Pre-fill from a link, e.g. from the Mile High AI Offer Analyzer:
+// ?address=...&price=500000&down=20&loan=FHA&rate=6.5&taxes=3000&hoa=75&concession=10000
+(function prefillFromLink(){
+  const q=new URLSearchParams(location.search);
+  if(![...q.keys()].length)return;
+  const num=k=>{const v=parseFloat(q.get(k));return Number.isFinite(v)?v:null};
+  if(q.get('address'))state.address=q.get('address');
+  const price=num('price');if(price!==null&&price>0){state.price=price;state.appraisal=price}
+  const down=num('down');if(down!==null){state.downMode='percent';state.down=down}
+  const loan=q.get('loan');if(['Conventional','FHA','VA'].includes(loan))state.loanType=loan;
+  const rate=num('rate');if(rate!==null&&rate>0){state.rate=rate;if(state.options[0])state.options[0].rate=rate}
+  const taxes=num('taxes');if(taxes!==null)state.taxes=taxes;
+  const hoa=num('hoa');if(hoa!==null)state.hoa=hoa;
+  const concession=num('concession');
+  if(concession!==null){state.concession=concession;state.concessionAuto=false}
+  else if(state.concessionAuto&&typeof setConcessionToAutoMax==='function')setConcessionToAutoMax();
+})();
 $('next').addEventListener('click',()=>{readCurrent();step=Math.min(step+1,steps.length-1);render()});
 $('back').addEventListener('click',()=>{readCurrent();step=Math.max(step-1,0);render()});
 render();
